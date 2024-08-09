@@ -34,6 +34,17 @@ main = do
   result <- runStateT stackManip [1, 2, 3]
   print result
 
+class MyEq a where
+  (==) :: a -> a -> Bool
+
+class (MyEq a) => MyOrd a where
+  (<), (<=), (>=), (>) :: a -> a -> Bool
+  max, min :: a -> a -> a
+
+elem :: forall a. (Prelude.Eq a) => a -> [a] -> Bool
+elem _ [] = False
+elem x (y : ys) = (x Prelude.== y) || Main.elem x ys
+
 data TurnstileState = Locked | Unlocked
   deriving (Show, Eq)
 
@@ -122,7 +133,7 @@ safeDiv x y = Just $ x `div` y
 
 lookupValue :: String -> [(String, Int)] -> Maybe Int
 lookupValue _ [] = Nothing
-lookupValue key ((k, v) : xs) | key == k = Just v | otherwise = lookupValue key xs
+lookupValue key ((k, v) : xs) | key Prelude.== k = Just v | otherwise = lookupValue key xs
 
 example10 :: Maybe Int
 example10 = do
@@ -201,7 +212,7 @@ sumST xs = runST $ do
 
 fromStoAandS :: Int -> (String, Int)
 fromStoAandS c
-  | c `mod` 5 == 0 = ("foo", c + 1)
+  | c `mod` 5 Prelude.== 0 = ("foo", c + 1)
   | otherwise = ("bar", c + 1)
 
 data Term a where
@@ -217,7 +228,7 @@ data Term a where
 eval :: Term a -> a
 eval (Main.Lit i) = i
 eval (Succ i) = 1 + Main.eval i
-eval (IsZero i) = Main.eval i == 0
+eval (IsZero i) = Main.eval i Prelude.== 0
 eval (If b e1 e2) = if Main.eval b then Main.eval e1 else Main.eval e2
 eval (Pair a b) = (Main.eval a, Main.eval b)
 eval (Main.Add a b) = Main.eval a + Main.eval b
