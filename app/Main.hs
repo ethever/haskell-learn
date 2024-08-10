@@ -7,6 +7,7 @@
 module Main where
 
 import Control.Monad.Free
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Identity
 import Control.Monad.Operational
 import Control.Monad.ST (runST)
@@ -37,6 +38,15 @@ main = do
   result <- runStateT stackManip [1, 2, 3]
   print result
   print $ runCalc Main.exampleProgram
+  evalStateT (replicateM_ 5 incresementAndPrint) 0
+
+type MyStateIO = StateT Int IO
+
+incresementAndPrint :: (MonadIO m) => StateT Int m ()
+incresementAndPrint = do
+  modify (+ 1)
+  n <- get
+  liftIO $ putStrLn $ "This is IO action number " ++ show n
 
 data CalcInstr a where
   CAdd :: Int -> Int -> CalcInstr Int
