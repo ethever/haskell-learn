@@ -6,12 +6,15 @@
 
 module Main where
 
+import Control.Monad.Free
 import Control.Monad.Identity
+import Control.Monad.Operational
 import Control.Monad.ST (runST)
 import Control.Monad.State
 import Data.STRef (modifySTRef, newSTRef, readSTRef)
 import Expr
 import MyLib qualified (someFunc)
+import System.Exit (exitSuccess)
 
 main :: IO ()
 main = do
@@ -33,6 +36,66 @@ main = do
   print example12
   result <- runStateT stackManip [1, 2, 3]
   print result
+  print $ runCalc Main.exampleProgram
+
+data CalcInstr a where
+  CAdd :: Int -> Int -> CalcInstr Int
+  CMultiply :: Int -> Int -> CalcInstr Int
+
+type CalcProgram = Program CalcInstr
+
+exampleProgram :: CalcProgram Int
+exampleProgram = do
+  x <- singleton (CAdd 2 3)
+  singleton (CMultiply x 4)
+
+runCalc :: CalcProgram a -> a
+runCalc = go . view
+  where
+    go :: ProgramView CalcInstr a -> a
+    go (Return a) = a
+    go (instr :>>= k) = case instr of
+      CAdd x y -> runCalc (k (x + y))
+      CMultiply x y -> runCalc (k (x * y))
+
+data TeletypeF x = PutStrln String x | GetLine (String -> x) | ExitSuccess
+
+instance Functor TeletypeF where
+  fmap f (PutStrln str x) = PutStrln str (f x)
+  fmap f (GetLine k) = GetLine (f . k)
+  fmap _ ExitSuccess = ExitSuccess
+
+type Teletype = Free TeletypeF
+
+putStrLn' :: String -> Teletype ()
+putStrLn' str = liftF $ PutStrln str ()
+
+getLine' :: Teletype String
+getLine' = liftF $ GetLine id
+
+exitSuccess' :: Teletype r
+exitSuccess' = liftF ExitSuccess
+
+run :: Teletype r -> IO r
+run (Pure r) = return r
+run (Free (PutStrln str t)) = putStrLn str >> run t
+run (Free (GetLine f)) = getLine >>= run . f
+run (Free ExitSuccess) = exitSuccess
+
+echo :: Teletype ()
+echo =
+  do
+    str <- getLine'
+    putStrLn' str
+    exitSuccess'
+    putStrLn' "Finished"
+
+aa =
+  do
+    x <- getLine
+    putStrLn x
+    exitSuccess
+    putStrLn "Finished"
 
 class MyEq a where
   (==) :: a -> a -> Bool
